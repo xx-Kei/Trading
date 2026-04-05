@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import yfinance as yf
 import pandas as pd
+import numpy as np
 
 from src.strategy import moving_average_strategy
 from src.backtest import run_backtest
@@ -8,28 +9,29 @@ from src.metrics import calculate_metrics
 
 tickers = {
     1: "AIR.NZ",   # Air New Zealand NZX
-    3: "AAPL",     # Apple 
-    4: "TSLA",      # Tesla 
-    4: "WBC.NZ",   # Westpace NZ
-    5: "FCG.NZ",   # Fonterra NZ
-    6: "^GSPC"  #SP500
+    2: "AAPL",     # Apple 
+    3: "TSLA",     # Tesla 
+    4: "^GSPC",    # SP500
+    5: "MSTR",     # Micro
+    6: "LLY",      # Eli Lily
+    7: "INTC",     # Intel
 }
 
-choice = 6
-start = "2020-01-01"
-end = "2025-01-01"
+choice = 7
+start = "2024-01-01"
+end   = "2026-04-02"
 
 df_base = yf.download(tickers[choice], start=start, end=end)[["Close"]]
 
 investment = 500
 
-strategies = [
-    (5, 10),
-    (10, 20),
-    (20, 50),
-    (50, 200)
-]
-
+strategies = []
+for short in range(5, 51, 5):
+    for long in range(10, 201, 10):
+        if short >= long: 
+            continue
+        else:
+            strategies.append((short, long))
 
 results = {}
 
@@ -71,20 +73,36 @@ def generate_brief_report(metrics_df):
 report_text = generate_brief_report(output_sorted)
 print(report_text)
 
-for name, df in results.items():
-    short, long = map(int, name.replace("MA", "").split("/"))
-    
-    plt.figure(figsize=(10, 5))
-    plt.plot(df["Close"], label="Price")
-    plt.plot(df["MA_short"], label=f"MA{short}")
-    plt.plot(df["MA_long"], label=f"MA{long}")
-    plt.title(f"{name} - Price & Moving Averages")
-    plt.legend()
-    
-plt.figure(figsize=(12, 6))
-for name, df in results.items():
-    plt.plot(df["Cumulative"], label=name)
-
-plt.title("Cumulative Returns for All Strategies")
+plt.figure(figsize=(10, 5))
+plt.plot(df["Close"], label="Price")
+plt.title(f"{name} - Price & Moving Averages")
 plt.legend()
+
+initial = investment
+
+short_vals = sorted({int(name.split("/")[0].replace("MA", "")) for name in results})
+long_vals  = sorted({int(name.split("/")[1]) for name in results})
+
+heatmap = np.full((len(short_vals), len(long_vals)), np.nan)
+
+for i, s in enumerate(short_vals):
+    for j, l in enumerate(long_vals):
+        key = f"MA{s}/{l}"
+        if key in output.index:
+            heatmap[i, j] = output.loc[key, "return"] / initial
+
+plt.figure(figsize=(12, 8))
+img = plt.imshow(heatmap, aspect='auto', cmap='RdYlGn')
+
+plt.xticks(ticks=np.arange(len(long_vals)), labels=long_vals, rotation=45)
+plt.yticks(ticks=np.arange(len(short_vals)), labels=short_vals)
+
+plt.xlabel("Long Window")
+plt.ylabel("Short Window")
+plt.title("MA Strategy Heatmap")
+
+cbar = plt.colorbar(img)
+cbar.ax.set_ylabel("Multiplier (x)")
+
+plt.tight_layout()
 plt.show()
