@@ -17,7 +17,7 @@ tickers = {
     7: "INTC",     # Intel
 }
 
-choice = 7
+choice = 4
 start = "2024-01-01"
 end   = "2026-04-02"
 
@@ -73,7 +73,7 @@ def generate_brief_report(metrics_df):
 report_text = generate_brief_report(output_sorted)
 print(report_text)
 
-plt.figure(figsize=(10, 5))
+plt.figure(figsize=(12, 8))
 plt.plot(df["Close"], label="Price")
 plt.title(f"{name} - Price & Moving Averages")
 plt.legend()
@@ -97,12 +97,39 @@ img = plt.imshow(heatmap, aspect='auto', cmap='RdYlGn')
 plt.xticks(ticks=np.arange(len(long_vals)), labels=long_vals, rotation=45)
 plt.yticks(ticks=np.arange(len(short_vals)), labels=short_vals)
 
-plt.xlabel("Long Window")
-plt.ylabel("Short Window")
-plt.title("MA Strategy Heatmap")
+plt.xlabel("Long")
+plt.ylabel("Short")
+plt.title("MA Strategy Heatmap (Return)")
 
 cbar = plt.colorbar(img)
-cbar.ax.set_ylabel("Multiplier (x)")
+cbar.ax.set_ylabel("ROI multiplier")
+
+plt.tight_layout()
+
+
+short_vals = sorted({int(name.split("/")[0].replace("MA", "")) for name in results})
+long_vals  = sorted({int(name.split("/")[1]) for name in results})
+
+heatmap_sharpe = np.full((len(short_vals), len(long_vals)), np.nan)
+
+for i, s in enumerate(short_vals):
+    for j, l in enumerate(long_vals):
+        key = f"MA{s}/{l}"
+        if key in output.index:
+            heatmap_sharpe[i, j] = output.loc[key, "sharpe"]
+
+plt.figure(figsize=(12, 8))
+img = plt.imshow(heatmap_sharpe, aspect='auto', cmap='RdYlGn')
+
+plt.xticks(ticks=np.arange(len(long_vals)), labels=long_vals, rotation=45)
+plt.yticks(ticks=np.arange(len(short_vals)), labels=short_vals)
+
+plt.xlabel("Long")
+plt.ylabel("Short")
+plt.title("MA Strategy Heatmap (Sharpe)")
+
+cbar = plt.colorbar(img)
+cbar.ax.set_ylabel("Sharpe Ratio")
 
 plt.tight_layout()
 plt.show()
